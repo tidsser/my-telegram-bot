@@ -132,17 +132,20 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 await message.answer("❌ Сделка недоступна или уже занята.")
         else:
             await message.answer("❌ Неверная ссылка.")
-    else:
-        # Обычное приветствие
-        await message.answer(
-            "👋 Добро пожаловать в protection!\n\n"
-            "✨ Надёжный сервис для безопасных сделок!\n\n"
-            "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
-            "💎 Комиссия за услугу: 2%\n"
-            "💎 Поддержка: @protectionManager\n\n"
-            "💌 Теперь ваши сделки под защитой!",
-            reply_markup=main_menu()
-        )
+            else:
+            # Обычное приветствие с анимацией
+            await message.answer_animation(
+                animation=types.FSInputFile("welcome.gif"),  # файл из репозитория
+                caption=(
+                    "👋 Добро пожаловать в protection!\n\n"
+                    "✨ Надёжный сервис для безопасных сделок!\n\n"
+                    "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
+                    "💎 Комиссия за услугу: 2%\n"
+                    "💎 Поддержка: @protectionManager\n\n"
+                    "💌 Теперь ваши сделки под защитой!"
+                ),
+                reply_markup=main_menu()
+            )
 
 # ---------- ОБРАБОТКА КНОПОК ГЛАВНОГО МЕНЮ ----------
 @dp.callback_query(F.data == "my_req")
