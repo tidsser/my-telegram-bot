@@ -135,7 +135,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
             else:
             # Обычное приветствие с анимацией
             await message.answer_animation(
-                animation=types.FSInputFile("welcome.gif"),  # файл из репозитория
+                animation=types.FSInputFile("welcome"),  # файл из репозитория
                 caption=(
                     "👋 Добро пожаловать в protection!\n\n"
                     "✨ Надёжный сервис для безопасных сделок!\n\n"
