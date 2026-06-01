@@ -14,7 +14,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # ---------- ТВОИ ДАННЫЕ ----------
 TOKEN = "8869240435:AAE0bpAu-73zinTvPiwZeC6cCCs2pJccPyo"
 BOT_USERNAME = "protectionDeals_bot"
-MANAGER_USERNAME = "@protectionManager"
+MANAGER_USERNAME = "@ManagerProtection"
+SUPPORT_USERNAME = "@Protection_D_Support"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -128,7 +129,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
         else:
             await message.answer("❌ Неверная ссылка.")
     else:
-        # Приветствие с видео
         await message.answer_video(
             video=types.FSInputFile("116671438_0p.mp4"),
             caption=(
@@ -136,7 +136,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 "✨ Надёжный сервис для безопасных сделок!\n\n"
                 "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
                 "💎 Комиссия за услугу: 2%\n"
-                "💎 Поддержка: @protectionManager\n\n"
+                f"💎 Поддержка: {SUPPORT_USERNAME}\n\n"
                 "💌 Теперь ваши сделки под защитой!"
             ),
             reply_markup=main_menu()
@@ -272,7 +272,7 @@ async def partner_program(call: types.CallbackQuery):
 # ---------- ПОДДЕРЖКА ----------
 @dp.callback_query(F.data == "support")
 async def support(call: types.CallbackQuery):
-    await call.message.edit_text(f"🆘 Поддержка: {MANAGER_USERNAME}", reply_markup=back_to_main_btn())
+    await call.message.edit_text(f"🆘 Поддержка: {SUPPORT_USERNAME}", reply_markup=back_to_main_btn())
     await call.answer()
 
 # ---------- НАЗАД ----------
@@ -284,7 +284,7 @@ async def back_to_main(call: types.CallbackQuery, state: FSMContext):
         "✨ Надёжный сервис для безопасных сделок!\n\n"
         "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
         "💎 Комиссия за услугу: 2%\n"
-        "💎 Поддержка: @protectionManager\n\n"
+        f"💎 Поддержка: {SUPPORT_USERNAME}\n\n"
         "💌 Теперь ваши сделки под защитой!",
         reply_markup=main_menu()
     )
