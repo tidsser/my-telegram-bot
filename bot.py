@@ -5,6 +5,7 @@ import sqlite3
 import os
 from datetime import datetime
 from aiohttp import web
+import aiohttp
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
@@ -104,7 +105,7 @@ def back_to_main_btn():
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
     ])
 
-# ---------- ЗАГЛУШКА ДЛЯ RENDER ----------
+# ---------- ЗАГЛУШКА ДЛЯ RENDER + САМОПИНГ ----------
 async def handle(request):
     return web.Response(text="Bot is running!")
 
@@ -117,6 +118,18 @@ async def run_web():
     site = web.TCPSite(runner, "0.0.0.0", PORT)
     await site.start()
     print(f"Web server started on port {PORT}")
+
+async def self_ping():
+    """Пингует сам себя каждые 5 минут, чтобы не засыпать"""
+    await asyncio.sleep(60)
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://localhost:{PORT}") as resp:
+                    print(f"Self-ping: {resp.status}")
+        except Exception as e:
+            print(f"Self-ping error: {e}")
+        await asyncio.sleep(300)
 
 # ---------- ОБРАБОТЧИК /start ----------
 @dp.message(Command("start"))
@@ -385,6 +398,7 @@ async def main():
     print("Бот запущен!")
     await asyncio.gather(
         run_web(),
+        self_ping(),
         dp.start_polling(bot)
     )
 
