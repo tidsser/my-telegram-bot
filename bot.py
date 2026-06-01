@@ -394,6 +394,7 @@ async def back_to_main(call: types.CallbackQuery, state: FSMContext):
 
 # ---------- ЗАПУСК ----------
 async def main():
+    await asyncio.sleep(5)
     print("Бот запущен!")
     await asyncio.gather(
         run_web(),
