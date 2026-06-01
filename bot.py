@@ -2,6 +2,7 @@ import asyncio
 import random
 import string
 import sqlite3
+import os
 from datetime import datetime
 from aiohttp import web
 
@@ -17,13 +18,18 @@ TOKEN = "8869240435:AAGySmGttt7CEOskqjX7ciBkKgxAR0UEESw"
 BOT_USERNAME = "protectionDeals_bot"
 MANAGER_USERNAME = "@ManagerProtection"
 SUPPORT_USERNAME = "@Protection_D_Support"
-PORT = 8080  # Порт для Render
+PORT = 8080
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
+# ---------- ПОСТОЯННАЯ ПАПКА ДЛЯ БАЗЫ ДАННЫХ ----------
+DATA_DIR = "/opt/render/project/src/data"
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "deals.db")
+
 # ---------- БАЗА ДАННЫХ ----------
-conn = sqlite3.connect("deals.db")
+conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 cur.execute("""
 CREATE TABLE IF NOT EXISTS users (
@@ -98,7 +104,7 @@ def back_to_main_btn():
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
     ])
 
-# ---------- ЗАГЛУШКА ДЛЯ RENDER (открывает порт) ----------
+# ---------- ЗАГЛУШКА ДЛЯ RENDER ----------
 async def handle(request):
     return web.Response(text="Bot is running!")
 
@@ -227,14 +233,14 @@ async def choose_req_currency(call: types.CallbackQuery, state: FSMContext):
 async def choose_deal_currency(call: types.CallbackQuery, state: FSMContext):
     currency = call.data.split("_")[1]
     user_id = call.from_user.id
-    req = cur.execute("SELECT * FROM requisites WHERE user_id=? AND currency=?",
+    req = cur.execute("SELECT card_number FROM requisites WHERE user_id=? AND currency=?",
                       (user_id, currency)).fetchone()
     if not req:
         await call.answer("❌ У вас нет привязанного реквизита для этой валюты!\nСначала добавьте реквизит в разделе «Мои реквизиты».", show_alert=True)
         return
     await state.update_data(currency=currency)
     await state.set_state(DealState.waiting_amount)
-    await call.message.answer("Введите сумму сделки:", reply_markup=back_to_main_btn())
+    await call.message.answer(f"💳 Ваша карта: {req[0]}\n\nВведите сумму сделки:", reply_markup=back_to_main_btn())
     await call.answer()
 
 # ---------- СОХРАНЕНИЕ КАРТЫ ----------
@@ -295,8 +301,9 @@ async def deal_description(message: types.Message, state: FSMContext):
         f"Тип сделки: 🎁 Подарки\n\n"
         f"Отдаёте: {description}\n"
         f"Получаете: {amount} {currency}\n\n"
-        f"🎊 Ссылка для покупателя:\n{link}",
-        reply_markup=main_menu()
+        f"🎊 Ссылка для покупателя:\n<a href='{link}'>{link}</a>",
+        reply_markup=main_menu(),
+        parse_mode="HTML"
     )
     await state.clear()
 
@@ -376,7 +383,6 @@ async def back_to_main(call: types.CallbackQuery, state: FSMContext):
 # ---------- ЗАПУСК ----------
 async def main():
     print("Бот запущен!")
-    # Запускаем веб-сервер и бота параллельно
     await asyncio.gather(
         run_web(),
         dp.start_polling(bot)
