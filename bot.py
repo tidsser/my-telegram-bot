@@ -147,7 +147,8 @@ async def cmd_start(message: types.Message, command: CommandObject):
 # ---------- ОБРАБОТКА КНОПОК ГЛАВНОГО МЕНЮ ----------
 @dp.callback_query(F.data == "my_req")
 async def my_requisites(call: types.CallbackQuery):
-    await call.message.edit_text("Выберите валюту для реквизитов:", reply_markup=currency_keyboard())
+    await call.message.delete()
+    await call.message.answer("Выберите валюту для реквизитов:", reply_markup=currency_keyboard())
     await call.answer()
 
 @dp.callback_query(F.data.startswith("curr_"))
@@ -157,7 +158,8 @@ async def choose_currency(call: types.CallbackQuery, state: FSMContext):
     if current_state is None:
         await state.update_data(currency=currency)
         await state.set_state(RequisiteState.waiting_card)
-        await call.message.edit_text(f"Введите номер карты для {currency}:", reply_markup=back_to_main_btn())
+        await call.message.delete()
+        await call.message.answer(f"Введите номер карты для {currency}:", reply_markup=back_to_main_btn())
     else:
         user_id = call.from_user.id
         req = cur.execute("SELECT * FROM requisites WHERE user_id=? AND currency=?",
@@ -167,7 +169,8 @@ async def choose_currency(call: types.CallbackQuery, state: FSMContext):
             return
         await state.update_data(currency=currency)
         await state.set_state(DealState.waiting_amount)
-        await call.message.edit_text("Введите сумму сделки:", reply_markup=back_to_main_btn())
+        await call.message.delete()
+        await call.message.answer("Введите сумму сделки:", reply_markup=back_to_main_btn())
     await call.answer()
 
 @dp.message(RequisiteState.waiting_card)
@@ -185,7 +188,8 @@ async def save_card(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "create_deal")
 async def create_deal(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(DealState.waiting_currency)
-    await call.message.edit_text("Выберите валюту для сделки:", reply_markup=currency_keyboard())
+    await call.message.delete()
+    await call.message.answer("Выберите валюту для сделки:", reply_markup=currency_keyboard())
     await call.answer()
 
 @dp.message(DealState.waiting_amount)
@@ -241,7 +245,8 @@ async def my_deals(call: types.CallbackQuery):
                         (user_id, user_id)).fetchone()
     count = deals[0] if deals[0] else 0
     total = deals[1] if deals[1] else 0
-    await call.message.edit_text(
+    await call.message.delete()
+    await call.message.answer(
         f"📊 Ваша статистика:\n"
         f"🔹 Количество сделок: {count}\n"
         f"💰 Общая сумма: {total:.2f}",
@@ -264,7 +269,8 @@ async def partner_program(call: types.CallbackQuery):
             show_alert=True
         )
     else:
-        await call.message.edit_text(
+        await call.message.delete()
+        await call.message.answer(
             "🎉 Вы подключены к партнёрской программе!\n\n"
             "Скоро здесь появится информация о ваших рефералах и бонусах.",
             reply_markup=back_to_main_btn()
@@ -274,7 +280,8 @@ async def partner_program(call: types.CallbackQuery):
 # ---------- ПОДДЕРЖКА ----------
 @dp.callback_query(F.data == "support")
 async def support(call: types.CallbackQuery):
-    await call.message.edit_text(
+    await call.message.delete()
+    await call.message.answer(
         f"🆘 Поддержка: {SUPPORT_USERNAME}\n"
         f"👤 Менеджер: {MANAGER_USERNAME}",
         reply_markup=back_to_main_btn()
@@ -285,7 +292,8 @@ async def support(call: types.CallbackQuery):
 @dp.callback_query(F.data == "back_to_main")
 async def back_to_main(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.edit_text(
+    await call.message.delete()
+    await call.message.answer(
         "👋 Добро пожаловать в protection!\n\n"
         "✨ Надёжный сервис для безопасных сделок!\n\n"
         "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
