@@ -128,13 +128,17 @@ async def cmd_start(message: types.Message, command: CommandObject):
         else:
             await message.answer("❌ Неверная ссылка.")
     else:
-        await message.answer(
-            "👋 Добро пожаловать в protection!\n\n"
-            "✨ Надёжный сервис для безопасных сделок!\n\n"
-            "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
-            "💎 Комиссия за услугу: 2%\n"
-            "💎 Поддержка: @protectionManager\n\n"
-            "💌 Теперь ваши сделки под защитой!",
+        # Приветствие с видео
+        await message.answer_video(
+            video=types.FSInputFile("116671438_0p.mp4"),
+            caption=(
+                "👋 Добро пожаловать в protection!\n\n"
+                "✨ Надёжный сервис для безопасных сделок!\n\n"
+                "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
+                "💎 Комиссия за услугу: 2%\n"
+                "💎 Поддержка: @protectionManager\n\n"
+                "💌 Теперь ваши сделки под защитой!"
+            ),
             reply_markup=main_menu()
         )
 
