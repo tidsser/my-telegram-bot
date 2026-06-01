@@ -394,7 +394,7 @@ async def back_to_main(call: types.CallbackQuery, state: FSMContext):
 
 # ---------- ЗАПУСК ----------
 async def main():
-    await asyncio.sleep(5)
+    await bot.delete_webhook(drop_pending_updates=True)
     print("Бот запущен!")
     await asyncio.gather(
         run_web(),
