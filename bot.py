@@ -15,7 +15,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ---------- ТВОИ ДАННЫЕ ----------
-TOKEN = "8869240435:AAGySmGttt7CEOskqjX7ciBkKgxAR0UEESw"
+TOKEN = "8869240435:AAGA69G5lOD1Z4dBfs8X2y0D534TDX5r-9s"
 BOT_USERNAME = "protectionDeals_bot"
 MANAGER_USERNAME = "@ManagerProtection"
 SUPPORT_USERNAME = "@Protection_D_Support"
@@ -120,7 +120,6 @@ async def run_web():
     print(f"Web server started on port {PORT}")
 
 async def self_ping():
-    """Пингует сам себя каждые 5 минут, чтобы не засыпать"""
     await asyncio.sleep(60)
     while True:
         try:
