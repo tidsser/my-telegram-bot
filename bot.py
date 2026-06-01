@@ -84,6 +84,13 @@ def currency_keyboard():
     btns.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")])
     return InlineKeyboardMarkup(inline_keyboard=btns)
 
+def currency_keyboard_for_req():
+    btns = []
+    for c in CURRENCIES:
+        btns.append([InlineKeyboardButton(text=c, callback_data=f"reqcurr_{c}")])
+    btns.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")])
+    return InlineKeyboardMarkup(inline_keyboard=btns)
+
 def back_to_main_btn():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
@@ -144,35 +151,41 @@ async def cmd_start(message: types.Message, command: CommandObject):
             reply_markup=main_menu()
         )
 
-# ---------- ОБРАБОТКА КНОПОК ГЛАВНОГО МЕНЮ ----------
+# ---------- МОИ РЕКВИЗИТЫ ----------
 @dp.callback_query(F.data == "my_req")
-async def my_requisites(call: types.CallbackQuery):
+async def my_requisites(call: types.CallbackQuery, state: FSMContext):
+    await state.set_state(RequisiteState.waiting_currency)
     await call.message.delete()
-    await call.message.answer("Выберите валюту для реквизитов:", reply_markup=currency_keyboard())
+    await call.message.answer("Выберите валюту для реквизитов:", reply_markup=currency_keyboard_for_req())
     await call.answer()
 
-@dp.callback_query(F.data.startswith("curr_"))
-async def choose_currency(call: types.CallbackQuery, state: FSMContext):
+# ---------- ВЫБОР ВАЛЮТЫ ДЛЯ РЕКВИЗИТОВ ----------
+@dp.callback_query(F.data.startswith("reqcurr_"), RequisiteState.waiting_currency)
+async def choose_req_currency(call: types.CallbackQuery, state: FSMContext):
     currency = call.data.split("_")[1]
-    current_state = await state.get_state()
-    if current_state is None:
-        await state.update_data(currency=currency)
-        await state.set_state(RequisiteState.waiting_card)
-        await call.message.delete()
-        await call.message.answer(f"Введите номер карты для {currency}:", reply_markup=back_to_main_btn())
-    else:
-        user_id = call.from_user.id
-        req = cur.execute("SELECT * FROM requisites WHERE user_id=? AND currency=?",
-                          (user_id, currency)).fetchone()
-        if not req:
-            await call.answer("У вас нет привязанного реквизита для этой валюты!", show_alert=True)
-            return
-        await state.update_data(currency=currency)
-        await state.set_state(DealState.waiting_amount)
-        await call.message.delete()
-        await call.message.answer("Введите сумму сделки:", reply_markup=back_to_main_btn())
+    await state.update_data(currency=currency)
+    await state.set_state(RequisiteState.waiting_card)
+    await call.message.delete()
+    await call.message.answer(f"Введите номер карты для {currency}:", reply_markup=back_to_main_btn())
     await call.answer()
 
+# ---------- ВЫБОР ВАЛЮТЫ ДЛЯ СДЕЛКИ ----------
+@dp.callback_query(F.data.startswith("curr_"))
+async def choose_deal_currency(call: types.CallbackQuery, state: FSMContext):
+    currency = call.data.split("_")[1]
+    user_id = call.from_user.id
+    req = cur.execute("SELECT * FROM requisites WHERE user_id=? AND currency=?",
+                      (user_id, currency)).fetchone()
+    if not req:
+        await call.answer("У вас нет привязанного реквизита для этой валюты!", show_alert=True)
+        return
+    await state.update_data(currency=currency)
+    await state.set_state(DealState.waiting_amount)
+    await call.message.delete()
+    await call.message.answer("Введите сумму сделки:", reply_markup=back_to_main_btn())
+    await call.answer()
+
+# ---------- СОХРАНЕНИЕ КАРТЫ ----------
 @dp.message(RequisiteState.waiting_card)
 async def save_card(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -185,6 +198,7 @@ async def save_card(message: types.Message, state: FSMContext):
     await message.answer(f"✅ Реквизиты для {currency} сохранены!", reply_markup=main_menu())
     await state.clear()
 
+# ---------- СОЗДАТЬ СДЕЛКУ ----------
 @dp.callback_query(F.data == "create_deal")
 async def create_deal(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(DealState.waiting_currency)
